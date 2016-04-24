@@ -1,6 +1,6 @@
 #include <xc.h>
-#include "emetteur.h"
-#include "recepteur.h"
+#include "maitre.h"
+#include "esclave.h"
 #include "pwm.h"
 #include "i2c.h"
 #include "test.h"
@@ -23,8 +23,8 @@
 #ifndef TEST
 
 typedef enum {
-    EMETTEUR,
-    RECEPTEUR
+    MODE_MAITRE,
+    MODE_ESCLAVE
 } Mode;
 
 Mode mode;
@@ -33,10 +33,10 @@ Mode mode;
  * Point d'entrée des interruptions basse priorité.
  */
 void low_priority interrupt interruptionsBassePriorite() {
-    if (mode == EMETTEUR) {
-        emetteurInterruptions();
+    if (mode == MODE_MAITRE) {
+        maitreInterruptions();
     } else {
-        recepteurInterruptions();
+        esclaveInterruptions();
     }    
 }
 
@@ -51,15 +51,15 @@ void main(void) {
     ANSELBbits.ANSB4 = 0;
     
     if (PORTBbits.RB4) {
-        mode = RECEPTEUR;
+        mode = MODE_ESCLAVE;
     } else {
-        mode = EMETTEUR;
+        mode = MODE_MAITRE;
     }
     
-    if (mode == EMETTEUR) {
-        emetteurMain();
+    if (mode == MODE_MAITRE) {
+        maitreMain();
     } else {
-        recepteurMain();
+        esclaveMain();
     }
     
     while(1);

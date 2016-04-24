@@ -3,9 +3,9 @@
 #include "i2c.h"
 
 /**
- * Point d'entrée des interruptions pour l'émetteur.
+ * Point d'entrée des interruptions pour le maître.
  */
-void emetteurInterruptions() {
+void maitreInterruptions() {
 
     static CommandeType commandeType;
     
@@ -46,9 +46,9 @@ void emetteurInterruptions() {
 }
 
 /**
- * Initialise le hardware pour l'émetteur.
+ * Initialise le hardware pour le maître.
  */
-static void emetteurInitialiseHardware() {
+static void maitreInitialiseHardware() {
     
     // Interruptions INT1 et INT2:
     TRISBbits.RB1 = 1;          // Port RB1 comme entrée...
@@ -102,8 +102,8 @@ static void emetteurInitialiseHardware() {
 /**
  * Point d'entrée pour l'émetteur de radio contrôle.
  */
-void emetteurMain(void) {
-    emetteurInitialiseHardware();
+void maitreMain(void) {
+    maitreInitialiseHardware();
     i2cReinitialise();
     pwmReinitialise();
 

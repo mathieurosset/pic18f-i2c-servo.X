@@ -3,9 +3,9 @@
 #include "test.h"
 #include "i2c.h"
 /**
- * Point d'entrée des interruptions basse priorité.
+ * Point d'entrée des interruptions pour l'esclave.
  */
-void recepteurInterruptions() {
+void esclaveInterruptions() {
     unsigned char p1, p3;
     unsigned char adresse;
     
@@ -42,7 +42,7 @@ void recepteurInterruptions() {
 /**
  * Initialise le hardware pour l'émetteur.
  */
-static void recepteurInitialiseHardware() {
+static void esclaveInitialiseHardware() {
     
     // Prépare Temporisateur 2 pour PWM (compte jusqu'à 125 en 2ms):
     T2CONbits.T2CKPS = 1;       // Diviseur de fréquence 1:4
@@ -96,10 +96,10 @@ static void recepteurInitialiseHardware() {
 }
 
 /**
- * Point d'entrée pour l'émetteur de radio contrôle.
+ * Point d'entrée pour l'esclave.
  */
-void recepteurMain(void) {
-    recepteurInitialiseHardware();
+void esclaveMain(void) {
+    esclaveInitialiseHardware();
     pwmReinitialise();
     i2cReinitialise();
 

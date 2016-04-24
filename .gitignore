@@ -6,3 +6,5 @@ nbproject/*.properties
 nbproject/private
 *.workspace
 *.pdsbak
+*.obj
+funclist

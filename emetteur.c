@@ -11,19 +11,19 @@ void emetteurInterruptions() {
     
     if (INTCON3bits.INT1F) {
         INTCON3bits.INT1F = 0;
-        commandeType = SERVO1;
+        commandeType = ECRITURE_SERVO_0;
         ADCON0bits.GO = 1;
     }
     
     if (INTCON3bits.INT2F) {
         INTCON3bits.INT2F = 0;
-        commandeType = SERVO2;
+        commandeType = ECRITURE_SERVO_1;
         ADCON0bits.GO = 1;
     }
     
     if (PIR1bits.ADIF) {
         PIR1bits.ADIF = 0;
-        i2cPrepareCommandePourEmission(MODULE_SERVO, commandeType, ADRESH);
+        i2cPrepareCommandePourEmission(commandeType, ADRESH);
         SSP1CON2bits.SEN = 1;
     }
     

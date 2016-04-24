@@ -2,12 +2,12 @@
 #include "pwm.h"
 #include "test.h"
 #include "i2c.h"
-
 /**
  * Point d'entrée des interruptions basse priorité.
  */
 void recepteurInterruptions() {
     unsigned char p1, p3;
+    unsigned char adresse;
     
     if (PIR1bits.TMR2IF) {
         if (pwmEspacement()) {
@@ -23,15 +23,16 @@ void recepteurInterruptions() {
     }
 
     if (PIR1bits.SSP1IF) {
-        if (SSP1STATbits.P) {
-            i2cFinDeReception();
-        } else {
-            if (SSP1STATbits.BF) {
-                if (SSP1STATbits.DA) {
-                    i2cReceptionDonnee(SSP1BUF);
-                } else {
-                    i2cReceptionAdresse(SSP1BUF);
-                }
+        if (SSP1STATbits.BF) {
+            if (SSP1STATbits.DA) {
+                pwmEtablitValeur(SSP1BUF);
+            } else {
+                adresse = SSP1BUF;
+                // Le bit moins signifiant de SSPxBUF contient R/W.
+                // Il faut donc décaler l'adresse de 1 bit vers la droite.
+                adresse >>= 1;
+                adresse &= 0b00000001;
+                pwmPrepareValeur(adresse);
             }
         }
         PIR1bits.SSP1IF = 0;
@@ -77,13 +78,13 @@ static void recepteurInitialiseHardware() {
 
     SSP1CON1bits.SSPEN = 1;     // Active le module SSP.    
     
-    SSP1ADD = MODULE_SERVO;     // Adresse de l'esclave.
-    SSP1MSK = 0xFF;             // L'esclave n'a qu'une adresse.
+    SSP1ADD = ECRITURE_SERVO_0;   // Adresse de l'esclave.
+    SSP1MSK = 0b11111100;       // L'esclave occupe 2 adresses.
     SSP1CON1bits.SSPM = 0b1110; // SSP1 en mode esclave I2C avec adresse de 7 bits et interruptions STOP et START.
     
-    SSP1CON3bits.PCIE = 1;      // Active l'interruption en cas STOP.
+    SSP1CON3bits.PCIE = 0;      // Désactive l'interruption en cas STOP.
     SSP1CON3bits.SCIE = 0;      // Désactive l'interruption en cas de START.
-    SSP1CON3bits.SBCDE = 1;     // Produit une interruption en cas de collision.
+    SSP1CON3bits.SBCDE = 0;     // Désactive l'interruption en cas de collision.
 
     PIE1bits.SSP1IE = 1;        // Interruption en cas de transmission I2C...
     IPR1bits.SSP1IP = 0;        // ... de basse priorité.
@@ -98,24 +99,9 @@ static void recepteurInitialiseHardware() {
  * Point d'entrée pour l'émetteur de radio contrôle.
  */
 void recepteurMain(void) {
-    Commande commande;
-
     recepteurInitialiseHardware();
     pwmReinitialise();
     i2cReinitialise();
 
-    while(1) {
-        if (i2cCommandeRecue()) {
-            i2cLitCommandeRecue(&commande);
-            switch (commande.commande) {
-                case SERVO1:
-                    pwmPrepareValeur(0);
-                    break;
-                case SERVO2:
-                    pwmPrepareValeur(1);
-                    break;
-            }
-            pwmEtablitValeur(commande.valeur);
-        }
-    }
+    while(1);
 }

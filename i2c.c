@@ -3,14 +3,13 @@
 #include "file.h"
 #include "test.h"
 
-#define I2C_LONGEUR_COMMANDE 3
+#define I2C_LONGEUR_COMMANDE 2
 
 /**
  * États possibles de la commande en cours.
  */
 typedef enum {
     ADRESSE,
-    COMMANDE,
     VALEUR,
     COMMANDE_TERMINEE
 } EtatTransmissionCommande;
@@ -43,9 +42,6 @@ unsigned char i2cDonneesDisponiblesPourEmission() {
 unsigned char i2cRecupereCaracterePourEmission() {
     switch(etatTransmissionCommande) {
         case ADRESSE:
-            etatTransmissionCommande = COMMANDE;
-            return fileDefile(&fileEmission);
-        case COMMANDE:
             etatTransmissionCommande = VALEUR;
             return fileDefile(&fileEmission);
         case VALEUR:
@@ -73,46 +69,12 @@ unsigned char i2cCommandeCompletementEmise() {
  * @param type Type de commande. 
  * @param valeur Valeur associée.
  */
-void i2cPrepareCommandePourEmission(Adresse adresse, CommandeType type, unsigned char valeur) {
+void i2cPrepareCommandePourEmission(Adresse adresse, unsigned char valeur) {
     fileEnfile(&fileEmission, adresse);
     if (etatTransmissionCommande == COMMANDE_TERMINEE) {
         etatTransmissionCommande = ADRESSE;
     }
-    fileEnfile(&fileEmission, type);
     fileEnfile(&fileEmission, valeur);
-}
-
-Commande commandeEnCoursDeReception;
-
-void i2cReceptionAdresse(Adresse adresse) {
-    commandeEnCoursDeReception.adresse = adresse;
-    commandeEnCoursDeReception.commande = 0;
-    commandeEnCoursDeReception.valeur = 0;
-}
-
-void i2cReceptionDonnee(unsigned char donnee) {
-    commandeEnCoursDeReception.commande = commandeEnCoursDeReception.valeur;
-    commandeEnCoursDeReception.valeur = donnee;    
-}
-
-File fileReception;
-
-void i2cFinDeReception() {
-    fileEnfile(&fileReception, commandeEnCoursDeReception.commande);
-    fileEnfile(&fileReception, commandeEnCoursDeReception.valeur);
-}
-
-unsigned char i2cCommandeRecue() {
-    if (fileEstVide(&fileReception)) {
-        return 0;
-    } else {
-        return 1;
-    }
-}
-
-void i2cLitCommandeRecue(Commande *commande) {
-    commande->commande = fileDefile(&fileReception);
-    commande->valeur = fileDefile(&fileReception);
 }
 
 /**
@@ -120,7 +82,6 @@ void i2cLitCommandeRecue(Commande *commande) {
  */
 void i2cReinitialise() {
     fileReinitialise(&fileEmission);
-    fileReinitialise(&fileReception);
     etatTransmissionCommande = COMMANDE_TERMINEE;
 }
 
@@ -128,12 +89,10 @@ void i2cReinitialise() {
 void testEmissionUneCommande() {
     i2cReinitialise();
     
-    i2cPrepareCommandePourEmission(MODULE_SERVO, SERVO1, 10);
+    i2cPrepareCommandePourEmission(ECRITURE_SERVO_0, 10);
     testeEgaliteEntiers("I2CE01", i2cDonneesDisponiblesPourEmission(), 255);
-    testeEgaliteEntiers("I2CE02", i2cRecupereCaracterePourEmission(), MODULE_SERVO);
+    testeEgaliteEntiers("I2CE02", i2cRecupereCaracterePourEmission(), ECRITURE_SERVO_0);
     testeEgaliteEntiers("I2CE03", i2cCommandeCompletementEmise(), 0);
-    testeEgaliteEntiers("I2CE04", i2cRecupereCaracterePourEmission(), SERVO1);
-    testeEgaliteEntiers("I2CE05", i2cCommandeCompletementEmise(), 0);
     testeEgaliteEntiers("I2CE06", i2cRecupereCaracterePourEmission(), 10);
     testeEgaliteEntiers("I2CE07", i2cCommandeCompletementEmise(), 255);
     testeEgaliteEntiers("I2CE08", i2cDonneesDisponiblesPourEmission(), 0);    
@@ -141,30 +100,27 @@ void testEmissionUneCommande() {
 
 void testEmissionDeuxCommandes() {
     i2cReinitialise();
-    i2cPrepareCommandePourEmission(MODULE_SERVO, SERVO1, 10);
+    i2cPrepareCommandePourEmission(ECRITURE_SERVO_0, 10);
 
     // Première commande:
-    testeEgaliteEntiers("I2CEA01", i2cDonneesDisponiblesPourEmission(), 255);
-    testeEgaliteEntiers("I2CEA02", i2cRecupereCaracterePourEmission(), MODULE_SERVO);
-    testeEgaliteEntiers("I2CEA03", i2cCommandeCompletementEmise(), 0);
-    testeEgaliteEntiers("I2CEA04", i2cRecupereCaracterePourEmission(), SERVO1);
-    testeEgaliteEntiers("I2CEA05", i2cCommandeCompletementEmise(), 0);
-    testeEgaliteEntiers("I2CEA06", i2cRecupereCaracterePourEmission(), 10);
+    testeEgaliteEntiers("I2CEA01", i2cCommandeCompletementEmise(), 0);
+    testeEgaliteEntiers("I2CEA02", i2cDonneesDisponiblesPourEmission(), 255);
+    testeEgaliteEntiers("I2CEA03", i2cRecupereCaracterePourEmission(), ECRITURE_SERVO_0);
+    testeEgaliteEntiers("I2CEA04", i2cCommandeCompletementEmise(), 0);
+    testeEgaliteEntiers("I2CEA05", i2cRecupereCaracterePourEmission(), 10);
     // Deuxième commande arrive avant que la première se termine.
-    i2cPrepareCommandePourEmission(MODULE_SERVO, SERVO2, 20);
-    testeEgaliteEntiers("I2CEAD07", i2cCommandeCompletementEmise(), 255);
+    i2cPrepareCommandePourEmission(ECRITURE_SERVO_1, 20);
+    testeEgaliteEntiers("I2CEAD06", i2cCommandeCompletementEmise(), 255);
     
     // Deuxième commande:
-    testeEgaliteEntiers("I2CEA09", i2cDonneesDisponiblesPourEmission(), 255);
-    testeEgaliteEntiers("I2CEA10", i2cRecupereCaracterePourEmission(), MODULE_SERVO);
-    testeEgaliteEntiers("I2CEA11", i2cCommandeCompletementEmise(), 0);
-    testeEgaliteEntiers("I2CEA12", i2cRecupereCaracterePourEmission(), SERVO2);
-    testeEgaliteEntiers("I2CEA13", i2cCommandeCompletementEmise(), 0);
-    testeEgaliteEntiers("I2CEA14", i2cRecupereCaracterePourEmission(), 20);
-    testeEgaliteEntiers("I2CEA15", i2cCommandeCompletementEmise(), 255);
+    testeEgaliteEntiers("I2CEA07", i2cDonneesDisponiblesPourEmission(), 255);
+    testeEgaliteEntiers("I2CEA08", i2cRecupereCaracterePourEmission(), ECRITURE_SERVO_1);
+    testeEgaliteEntiers("I2CEA09", i2cCommandeCompletementEmise(), 0);
+    testeEgaliteEntiers("I2CEA10", i2cRecupereCaracterePourEmission(), 20);
+    testeEgaliteEntiers("I2CEA11", i2cCommandeCompletementEmise(), 255);
     
     // Plus de commandes:
-    testeEgaliteEntiers("I2CEA16", i2cDonneesDisponiblesPourEmission(), 0);
+    testeEgaliteEntiers("I2CEA12", i2cDonneesDisponiblesPourEmission(), 0);
 }
 
 void testI2c() {

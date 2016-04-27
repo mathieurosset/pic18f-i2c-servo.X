@@ -2,13 +2,25 @@
 #include "pwm.h"
 #include "test.h"
 #include "i2c.h"
+
 /**
  * Point d'entrée des interruptions pour l'esclave.
  */
 void esclaveInterruptions() {
     unsigned char p1, p3;
-    unsigned char adresse;
-    
+    unsigned char adresse, potentiometre;
+
+    if (PIR1bits.TMR1IF) {
+        TMR1 = 3035;
+        ADCON0bits.GO = 1;
+        PIR1bits.TMR1IF = 0;
+    }
+
+    if (PIR1bits.ADIF) {
+        potentiometre = ADRESH;
+        PIR1bits.ADIF = 0;
+    }
+
     if (PIR1bits.TMR2IF) {
         if (pwmEspacement()) {
             p1 = pwmValeur(0);
@@ -23,16 +35,25 @@ void esclaveInterruptions() {
     }
 
     if (PIR1bits.SSP1IF) {
-        if (SSP1STATbits.BF) {
+        if (SSP1STATbits.RW) {
             if (SSP1STATbits.DA) {
-                pwmEtablitValeur(SSP1BUF);
+                SSP1BUF = potentiometre;
             } else {
                 adresse = SSP1BUF;
-                // Le bit moins signifiant de SSPxBUF contient R/W.
-                // Il faut donc décaler l'adresse de 1 bit vers la droite.
-                adresse >>= 1;
-                adresse &= 0b00000001;
-                pwmPrepareValeur(adresse);
+                SSP1CON1bits.CKP = 0;
+            }
+        } else {
+            if (SSP1STATbits.BF) {
+                if (SSP1STATbits.DA) {
+                    pwmEtablitValeur(SSP1BUF);
+                } else {
+                    adresse = SSP1BUF;
+                    // Le bit moins signifiant de SSPxBUF contient R/W.
+                    // Il faut donc décaler l'adresse de 1 bit vers la droite.
+                    adresse >>= 1;
+                    adresse &= 0b00000001;
+                    pwmPrepareValeur(adresse);
+                }
             }
         }
         PIR1bits.SSP1IF = 0;
@@ -43,6 +64,27 @@ void esclaveInterruptions() {
  * Initialise le hardware pour l'émetteur.
  */
 static void esclaveInitialiseHardware() {
+
+    // Prépare Temporisateur 1 pour 4 interruptions par sec.
+    T1CONbits.TMR1CS = 0;   // Source FOSC/4
+    T1CONbits.T1CKPS = 0;   // Pas de diviseur de fréquence.
+    T1CONbits.T1RD16 = 1;   // Compteur de 16 bits.
+    T1CONbits.TMR1ON = 1;   // Active le temporisateur.
+    
+    PIE1bits.TMR1IE = 1;    // Active les interruptions...
+    IPR1bits.TMR1IP = 0;    // ... de basse priorité.
+    
+    // Active le module de conversion A/D:
+    TRISBbits.RB3 = 1;      // Active RB3 comme entrée.
+    ANSELBbits.ANSB3 = 1;   // Active AN09 comme entrée analogique.
+    ADCON0bits.ADON = 1;    // Allume le module A/D.
+    ADCON0bits.CHS = 9;     // Branche le convertisseur sur AN09
+    ADCON2bits.ADFM = 0;    // Les 8 bits plus signifiants sur ADRESH.
+    ADCON2bits.ACQT = 3;    // Temps d'acquisition à 6 TAD.
+    ADCON2bits.ADCS = 0;    // À 1MHz, le TAD est à 2us.
+
+    PIE1bits.ADIE = 1;      // Active les interruptions A/D
+    IPR1bits.ADIP = 0;      // Interruptions A/D sont de basse priorité.
     
     // Prépare Temporisateur 2 pour PWM (compte jusqu'à 125 en 2ms):
     T2CONbits.T2CKPS = 1;       // Diviseur de fréquence 1:4

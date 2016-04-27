@@ -22,7 +22,7 @@ void i2cPrepareCommandePourEmission(Adresse adresse, unsigned char valeur);
 unsigned char i2cDonneesDisponiblesPourEmission();
 unsigned char i2cRecupereCaracterePourEmission();
 unsigned char i2cCommandeCompletementEmise();
-
+void i2cMaitre();
 void i2cReinitialise();
 
 #ifdef TEST

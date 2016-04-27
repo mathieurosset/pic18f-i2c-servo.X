@@ -3,20 +3,6 @@
 #include "file.h"
 #include "test.h"
 
-#define I2C_LONGEUR_COMMANDE 2
-
-/**
- * États possibles de la commande en cours.
- */
-typedef enum {
-    ADRESSE,
-    VALEUR,
-    COMMANDE_TERMINEE
-} EtatTransmissionCommande;
-
-/** État de la commande en cours. */
-EtatTransmissionCommande etatTransmissionCommande = COMMANDE_TERMINEE;
-
 File fileEmission;
 
 /**
@@ -25,12 +11,8 @@ File fileEmission;
 unsigned char i2cDonneesDisponiblesPourEmission() {
     if (fileEstVide(&fileEmission)) {
         return 0;
-    } else {
-        if (etatTransmissionCommande == COMMANDE_TERMINEE) {
-            etatTransmissionCommande = ADRESSE;
-        }
-        return 255;
     }
+    return 255;
 }
 
 /**
@@ -40,28 +22,7 @@ unsigned char i2cDonneesDisponiblesPourEmission() {
  * @return 
  */
 unsigned char i2cRecupereCaracterePourEmission() {
-    switch(etatTransmissionCommande) {
-        case ADRESSE:
-            etatTransmissionCommande = VALEUR;
-            return fileDefile(&fileEmission);
-        case VALEUR:
-            etatTransmissionCommande = COMMANDE_TERMINEE;
-            return fileDefile(&fileEmission);
-        default:
-            return 0;
-    }
-}
-
-/**
- * Indique si la commande en cours a été complètement émise.
- * @return -1 / 255 si tous les caractères d'une commande ont été émis.
- */
-unsigned char i2cCommandeCompletementEmise() {
-    if (etatTransmissionCommande == COMMANDE_TERMINEE) {
-        return 255;
-    } else {
-        return 0;
-    }
+    return fileDefile(&fileEmission);
 }
 
 /**
@@ -71,18 +32,73 @@ unsigned char i2cCommandeCompletementEmise() {
  */
 void i2cPrepareCommandePourEmission(Adresse adresse, unsigned char valeur) {
     fileEnfile(&fileEmission, adresse);
-    if (etatTransmissionCommande == COMMANDE_TERMINEE) {
-        etatTransmissionCommande = ADRESSE;
-    }
     fileEnfile(&fileEmission, valeur);
+}
+
+typedef enum {
+    DEBUT_OPERATION,
+    PREPARE_RECEPTION,
+    RECEPTION_DONNEE,
+    EMISSION_DONNEE,
+    EMISSION_STOP,
+    FIN_OPERATION,
+            
+} EtatMaitreI2C;
+
+static EtatMaitreI2C etatMaitre = DEBUT_OPERATION;
+
+void i2cMaitre() {
+    unsigned char adresse;
+    
+    switch (etatMaitre) {
+        case DEBUT_OPERATION:
+            if (i2cDonneesDisponiblesPourEmission()) {
+                adresse = i2cRecupereCaracterePourEmission();
+                SSP1BUF = adresse;
+                if (adresse & 1) {
+                    etatMaitre = PREPARE_RECEPTION;
+                } else {
+                    etatMaitre = EMISSION_DONNEE;
+                }
+            }
+            break;
+            
+        case EMISSION_DONNEE:
+            SSP1BUF = i2cRecupereCaracterePourEmission();
+            etatMaitre = EMISSION_STOP;
+            break;
+
+        case PREPARE_RECEPTION:
+            SSP1CON2bits.RCEN = 1;
+            etatMaitre = RECEPTION_DONNEE;
+            break;
+            
+        case RECEPTION_DONNEE:
+            PORTA = SSP1BUF;
+            SSP1CON2bits.ACKEN = 1;
+            etatMaitre = EMISSION_STOP;
+            break;
+            
+        case EMISSION_STOP:
+            SSP1CON2bits.PEN = 1;
+            etatMaitre = FIN_OPERATION;
+            break;
+            
+        case FIN_OPERATION:
+            if (i2cDonneesDisponiblesPourEmission()) {
+                SSP1CON2bits.SEN = 1;
+            }
+            etatMaitre = DEBUT_OPERATION;
+            break;
+    }
 }
 
 /**
  * Réinitialise la machine i2c.
  */
 void i2cReinitialise() {
+    etatMaitre = DEBUT_OPERATION;
     fileReinitialise(&fileEmission);
-    etatTransmissionCommande = COMMANDE_TERMINEE;
 }
 
 #ifdef TEST

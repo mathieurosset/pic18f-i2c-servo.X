@@ -35,24 +35,32 @@ void esclaveInterruptions() {
     }
 
     if (PIR1bits.SSP1IF) {
-        if (SSP1STATbits.RW) {
-            if (SSP1STATbits.DA) {
-                SSP1BUF = potentiometre;
-            } else {
-                adresse = SSP1BUF;
-                SSP1CON1bits.CKP = 0;
-            }
-        } else {
-            if (SSP1STATbits.BF) {
+        if (SSP1STATbits.S) {
+            if (SSP1STATbits.RW) {
                 if (SSP1STATbits.DA) {
-                    pwmEtablitValeur(SSP1BUF);
+                    // État 4 - Opération de lecture, dernier octet est une donnée:
+                    SSP1BUF = 9;
                 } else {
+                    // État 3 - Opération de lecture, dernier octet est une adresse:
                     adresse = SSP1BUF;
-                    // Le bit moins signifiant de SSPxBUF contient R/W.
-                    // Il faut donc décaler l'adresse de 1 bit vers la droite.
-                    adresse >>= 1;
-                    adresse &= 0b00000001;
-                    pwmPrepareValeur(adresse);
+                    while (SSP1STATbits.BF);
+                    SSP1BUF = potentiometre;
+                    // Attention à maintenir le STRECH jusqu'à après avoir
+                    // mis la donnée dans le SSP1BUF:
+                    SSP1CON1bits.CKP = 1;
+                }
+            } else {
+                if (SSP1STATbits.BF) {
+                    if (SSP1STATbits.DA) {
+                        pwmEtablitValeur(SSP1BUF);
+                    } else {
+                        adresse = SSP1BUF;
+                        // Le bit moins signifiant de SSPxBUF contient R/W.
+                        // Il faut donc décaler l'adresse de 1 bit vers la droite.
+                        adresse >>= 1;
+                        adresse &= 0b00000001;
+                        pwmPrepareValeur(adresse);
+                    }
                 }
             }
         }
@@ -123,7 +131,7 @@ static void esclaveInitialiseHardware() {
     SSP1ADD = ECRITURE_SERVO_0;   // Adresse de l'esclave.
     SSP1MSK = 0b11111100;       // L'esclave occupe 2 adresses.
     SSP1CON1bits.SSPM = 0b1110; // SSP1 en mode esclave I2C avec adresse de 7 bits et interruptions STOP et START.
-    
+        
     SSP1CON3bits.PCIE = 0;      // Désactive l'interruption en cas STOP.
     SSP1CON3bits.SCIE = 0;      // Désactive l'interruption en cas de START.
     SSP1CON3bits.SBCDE = 0;     // Désactive l'interruption en cas de collision.

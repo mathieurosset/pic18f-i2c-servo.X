@@ -54,41 +54,43 @@ void i2cMaitre() {
         case DEBUT_OPERATION:
             if (i2cDonneesDisponiblesPourEmission()) {
                 adresse = i2cRecupereCaracterePourEmission();
-                SSP1BUF = adresse;
                 if (adresse & 1) {
                     etatMaitre = PREPARE_RECEPTION;
                 } else {
                     etatMaitre = EMISSION_DONNEE;
                 }
+                SSP1BUF = adresse;
             }
             break;
             
         case EMISSION_DONNEE:
-            SSP1BUF = i2cRecupereCaracterePourEmission();
             etatMaitre = EMISSION_STOP;
+            SSP1BUF = i2cRecupereCaracterePourEmission();
             break;
 
         case PREPARE_RECEPTION:
-            SSP1CON2bits.RCEN = 1;
             etatMaitre = RECEPTION_DONNEE;
+            i2cRecupereCaracterePourEmission();
+            SSP1CON2bits.RCEN = 1;  // MMSP en réception.
             break;
             
         case RECEPTION_DONNEE:
-            PORTA = SSP1BUF;
-            SSP1CON2bits.ACKEN = 1;
             etatMaitre = EMISSION_STOP;
+            PORTA = SSP1BUF;
+            SSP1CON2bits.ACKDT = 1; // NACK
+            SSP1CON2bits.ACKEN = 1; // Transmet le NACK
             break;
             
         case EMISSION_STOP:
-            SSP1CON2bits.PEN = 1;
             etatMaitre = FIN_OPERATION;
+            SSP1CON2bits.PEN = 1;
             break;
             
         case FIN_OPERATION:
+            etatMaitre = DEBUT_OPERATION;
             if (i2cDonneesDisponiblesPourEmission()) {
                 SSP1CON2bits.SEN = 1;
             }
-            etatMaitre = DEBUT_OPERATION;
             break;
     }
 }

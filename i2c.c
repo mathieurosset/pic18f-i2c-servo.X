@@ -36,58 +36,58 @@ void i2cPrepareCommandePourEmission(Adresse adresse, unsigned char valeur) {
 }
 
 typedef enum {
-    DEBUT_OPERATION,
-    PREPARE_RECEPTION,
-    RECEPTION_DONNEE,
-    EMISSION_DONNEE,
-    EMISSION_STOP,
-    FIN_OPERATION,
+    I2C_MASTER_EMISSION_ADRESSE,
+    I2C_MASTER_PREPARE_RECEPTION_DONNEE,
+    I2C_MASTER_RECEPTION_DONNEE,
+    I2C_MASTER_EMISSION_DONNEE,
+    I2C_MASTER_EMISSION_STOP,
+    I2C_MASTER_FIN_OPERATION,
             
 } EtatMaitreI2C;
 
-static EtatMaitreI2C etatMaitre = DEBUT_OPERATION;
+static EtatMaitreI2C etatMaitre = I2C_MASTER_EMISSION_ADRESSE;
 
 void i2cMaitre() {
     unsigned char adresse;
     
     switch (etatMaitre) {
-        case DEBUT_OPERATION:
+        case I2C_MASTER_EMISSION_ADRESSE:
             if (i2cDonneesDisponiblesPourEmission()) {
                 adresse = i2cRecupereCaracterePourEmission();
                 if (adresse & 1) {
-                    etatMaitre = PREPARE_RECEPTION;
+                    etatMaitre = I2C_MASTER_PREPARE_RECEPTION_DONNEE;
                 } else {
-                    etatMaitre = EMISSION_DONNEE;
+                    etatMaitre = I2C_MASTER_EMISSION_DONNEE;
                 }
                 SSP1BUF = adresse;
             }
             break;
             
-        case EMISSION_DONNEE:
-            etatMaitre = EMISSION_STOP;
+        case I2C_MASTER_EMISSION_DONNEE:
+            etatMaitre = I2C_MASTER_EMISSION_STOP;
             SSP1BUF = i2cRecupereCaracterePourEmission();
             break;
 
-        case PREPARE_RECEPTION:
-            etatMaitre = RECEPTION_DONNEE;
+        case I2C_MASTER_PREPARE_RECEPTION_DONNEE:
+            etatMaitre = I2C_MASTER_RECEPTION_DONNEE;
             i2cRecupereCaracterePourEmission();
             SSP1CON2bits.RCEN = 1;  // MMSP en réception.
             break;
             
-        case RECEPTION_DONNEE:
-            etatMaitre = EMISSION_STOP;
+        case I2C_MASTER_RECEPTION_DONNEE:
+            etatMaitre = I2C_MASTER_EMISSION_STOP;
             PORTA = SSP1BUF;
             SSP1CON2bits.ACKDT = 1; // NACK
             SSP1CON2bits.ACKEN = 1; // Transmet le NACK
             break;
             
-        case EMISSION_STOP:
-            etatMaitre = FIN_OPERATION;
+        case I2C_MASTER_EMISSION_STOP:
+            etatMaitre = I2C_MASTER_FIN_OPERATION;
             SSP1CON2bits.PEN = 1;
             break;
             
-        case FIN_OPERATION:
-            etatMaitre = DEBUT_OPERATION;
+        case I2C_MASTER_FIN_OPERATION:
+            etatMaitre = I2C_MASTER_EMISSION_ADRESSE;
             if (i2cDonneesDisponiblesPourEmission()) {
                 SSP1CON2bits.SEN = 1;
             }
@@ -99,7 +99,7 @@ void i2cMaitre() {
  * Réinitialise la machine i2c.
  */
 void i2cReinitialise() {
-    etatMaitre = DEBUT_OPERATION;
+    etatMaitre = I2C_MASTER_EMISSION_ADRESSE;
     fileReinitialise(&fileEmission);
 }
 

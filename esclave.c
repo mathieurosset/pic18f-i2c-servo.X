@@ -35,25 +35,29 @@ void esclaveInterruptions() {
     }
 
     if (PIR1bits.SSP1IF) {
+        // Machine à état extraite de Microchip AN734 - Apendix B
         if (SSP1STATbits.S) {
             if (SSP1STATbits.RW) {
+                // État 4 - Opération de lecture, dernier octet transmis est une donnée:
+                // Jamais utilisé si les commandes ont un seul octet associé.
                 if (SSP1STATbits.DA) {
-                    // État 4 - Opération de lecture, dernier octet est une donnée:
-                    SSP1BUF = 9;
-                } else {
-                    // État 3 - Opération de lecture, dernier octet est une adresse:
-                    adresse = SSP1BUF;
-                    while (SSP1STATbits.BF);
-                    SSP1BUF = potentiometre;
-                    // Attention à maintenir le STRECH jusqu'à après avoir
-                    // mis la donnée dans le SSP1BUF:
-                    SSP1CON1bits.CKP = 1;
+                    SSP1BUF = potentiometre;    // Suivante donnée à transmettre.
+                    SSP1CON1bits.CKP = 1;       // Maintenir le STRETCH jusqu'à après remplir SSP1BUF.
+                } 
+                // État 3 - Opération de lecture, dernier octet reçu est une adresse:
+                else {
+                    adresse = SSP1BUF;          // L'adresse est disponible.
+                    SSP1BUF = potentiometre;    // Donnée à transmettre.
+                    SSP1CON1bits.CKP = 1;       // Maintenir le STRETCH jusqu'à après remplir SSP1BUF.
                 }
             } else {
                 if (SSP1STATbits.BF) {
+                    // État 2 - Opération de lecture, dernier octet reçu est une donnée:
                     if (SSP1STATbits.DA) {
                         pwmEtablitValeur(SSP1BUF);
-                    } else {
+                    }
+                    // État 1 - Opération de lecture, dernier octet reçu est une adresse:
+                    else {
                         adresse = SSP1BUF;
                         // Le bit moins signifiant de SSPxBUF contient R/W.
                         // Il faut donc décaler l'adresse de 1 bit vers la droite.

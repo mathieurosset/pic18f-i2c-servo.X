@@ -44,6 +44,10 @@ void maitreInterruptions() {
  * Initialise le hardware pour le maître.
  */
 static void maitreInitialiseHardware() {
+    // Prépare PORTA pour sortie digitale:
+    TRISA = 0xF0;
+    ANSELA = 0;
+    
     // Prépare Temporisateur 1 pour 4 interruptions par sec.
     T1CONbits.TMR1CS = 0;   // Source FOSC/4
     T1CONbits.T1CKPS = 0;   // Pas de diviseur de fréquence.

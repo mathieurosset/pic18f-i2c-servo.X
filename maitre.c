@@ -6,31 +6,28 @@
  * Point d'entrée des interruptions pour le maître.
  */
 void maitreInterruptions() {
-    static CommandeType commandeType;
+    static I2cAdresse i2cAdresse;
     
     if (INTCON3bits.INT1F) {
         INTCON3bits.INT1F = 0;
-        commandeType = ECRITURE_SERVO_0;
+        i2cAdresse = ECRITURE_SERVO_0;
         ADCON0bits.GO = 1;
     }
     
     if (INTCON3bits.INT2F) {
         INTCON3bits.INT2F = 0;
-//        commandeType = ECRITURE_SERVO_1;
-//        ADCON0bits.GO = 1;
-        i2cPrepareCommandePourEmission(LECTURE_POTENTIOMETRE, 0);
-        SSP1CON2bits.SEN = 1;
+        i2cAdresse = ECRITURE_SERVO_1;
+        ADCON0bits.GO = 1;
     }
     
     if (PIR1bits.ADIF) {
+        i2cPrepareCommandePourEmission(i2cAdresse, ADRESH);
         PIR1bits.ADIF = 0;
-        i2cPrepareCommandePourEmission(commandeType, ADRESH);
-        SSP1CON2bits.SEN = 1;
     }
     
     if (PIR1bits.TMR1IF) {
         TMR1 = 3035;
-//        i2cPrepareCommandePourEmission(LECTURE_POTENTIOMETRE, 0);
+        i2cPrepareCommandePourEmission(LECTURE_POTENTIOMETRE, 0);
         PIR1bits.TMR1IF = 0;
     }
 
@@ -54,7 +51,7 @@ static void maitreInitialiseHardware() {
     T1CONbits.T1RD16 = 1;   // Compteur de 16 bits.
     T1CONbits.TMR1ON = 1;   // Active le temporisateur.
     
-    PIE1bits.TMR1IE = 0;    // Active les interruptions...
+    PIE1bits.TMR1IE = 1;    // Active les interruptions...
     IPR1bits.TMR1IP = 0;    // ... de basse priorité.
     
     // Interruptions INT1 et INT2:

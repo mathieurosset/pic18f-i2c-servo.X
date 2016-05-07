@@ -8,7 +8,6 @@
  */
 void esclaveInterruptions() {
     unsigned char p1, p3;
-    unsigned char adresse, potentiometre;
 
     if (PIR1bits.TMR1IF) {
         TMR1 = 3035;
@@ -17,7 +16,7 @@ void esclaveInterruptions() {
     }
 
     if (PIR1bits.ADIF) {
-        potentiometre = ADRESH;
+        i2cExposeValeur(0, ADRESH);
         PIR1bits.ADIF = 0;
     }
 
@@ -35,40 +34,7 @@ void esclaveInterruptions() {
     }
 
     if (PIR1bits.SSP1IF) {
-        // Machine à état extraite de Microchip AN734 - Apendix B
-        if (SSP1STATbits.S) {
-            if (SSP1STATbits.RW) {
-                // État 4 - Opération de lecture, dernier octet transmis est une donnée:
-                // Jamais utilisé si les commandes ont un seul octet associé.
-                if (SSP1STATbits.DA) {
-                    SSP1BUF = potentiometre;    // Suivante donnée à transmettre.
-                    SSP1CON1bits.CKP = 1;       // Maintenir le STRETCH jusqu'à après remplir SSP1BUF.
-                } 
-                // État 3 - Opération de lecture, dernier octet reçu est une adresse:
-                else {
-                    adresse = SSP1BUF;          // L'adresse est disponible.
-                    SSP1BUF = potentiometre;    // Donnée à transmettre.
-                    SSP1CON1bits.CKP = 1;       // Maintenir le STRETCH jusqu'à après remplir SSP1BUF.
-                }
-            } else {
-                if (SSP1STATbits.BF) {
-                    // État 2 - Opération de lecture, dernier octet reçu est une donnée:
-                    if (SSP1STATbits.DA) {
-                        pwmEtablitValeur(SSP1BUF);
-                    }
-                    // État 1 - Opération de lecture, dernier octet reçu est une adresse:
-                    else {
-                        adresse = SSP1BUF;
-                        // Le bit moins signifiant de SSPxBUF contient R/W.
-                        // Il faut donc décaler l'adresse de 1 bit vers la droite.
-                        adresse >>= 1;
-                        adresse &= 0b00000001;
-                        pwmPrepareValeur(adresse);
-                    }
-                }
-            }
-        }
-        PIR1bits.SSP1IF = 0;
+        i2cEsclave();
     }
 }
 
@@ -133,7 +99,7 @@ static void esclaveInitialiseHardware() {
     SSP1CON1bits.SSPEN = 1;     // Active le module SSP.    
     
     SSP1ADD = ECRITURE_SERVO_0;   // Adresse de l'esclave.
-    SSP1MSK = 0b11111100;       // L'esclave occupe 2 adresses.
+    SSP1MSK = I2C_MASQUE_ADRESSES_ESCLAVES;
     SSP1CON1bits.SSPM = 0b1110; // SSP1 en mode esclave I2C avec adresse de 7 bits et interruptions STOP et START.
         
     SSP1CON3bits.PCIE = 0;      // Désactive l'interruption en cas STOP.
@@ -156,6 +122,6 @@ void esclaveMain(void) {
     esclaveInitialiseHardware();
     pwmReinitialise();
     i2cReinitialise();
-
+    i2cRappelCommande(pwmEtablitValeurCanal);
     while(1);
 }

@@ -38,6 +38,16 @@ void pwmEtablitValeur(unsigned char valeur) {
 }
 
 /**
+ * Appelle #pwmPrepareValeur et #pwmEtablitValeur
+ * @param canal Le numéro de canal.
+ * @param valeur La valeur du canal.
+ */
+void pwmEtablitValeurCanal(unsigned char adresse, unsigned char valeur) {
+    pwmPrepareValeur(adresse);
+    pwmEtablitValeur(valeur);
+}
+
+/**
  * Rend la valeur PWM correspondante au canal.
  * @param canal Le cana.
  * @return La valeur PWM correspondante au canal.

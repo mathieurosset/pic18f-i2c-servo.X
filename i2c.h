@@ -15,9 +15,9 @@ typedef struct {
     I2cAdresse adresse;
     unsigned char valeur;
 } I2cCommande;
-typedef void (*RappelCommande)(unsigned char, unsigned char);
+typedef void (*I2cRappelCommande)(unsigned char, unsigned char);
 
-void i2cRappelCommande(RappelCommande r);
+void i2cRappelCommande(I2cRappelCommande r);
 void i2cExposeValeur(unsigned char adresse, unsigned char valeur);
 void i2cPrepareCommandePourEmission(I2cAdresse adresse, unsigned char valeur);
 unsigned char i2cDonneesDisponiblesPourEmission();

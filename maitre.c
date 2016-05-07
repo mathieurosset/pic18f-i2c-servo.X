@@ -103,12 +103,17 @@ static void maitreInitialiseHardware() {
     INTCONbits.GIEL = 1;
 }
 
+void etablitValeurPortA(unsigned char adresse, unsigned char valeur) {
+    PORTA = valeur;
+}
+
 /**
  * Point d'entrée pour l'émetteur de radio contrôle.
  */
 void maitreMain(void) {
     maitreInitialiseHardware();
     i2cReinitialise();
+    i2cRappelCommande(etablitValeurPortA);
     pwmReinitialise();
 
     while(1);

@@ -51,8 +51,25 @@ void i2cPrepareCommandePourEmission(I2cAdresse adresse, unsigned char valeur) {
     }
 }
 
+/** 
+ * Adresse de la fonction à appeler pour compléter 
+ * l'exécution d'une commande I2C.
+ */
+static I2cRappelCommande rappelCommande;
+
+/**
+ * Établit la fonction à appeler pour compléter l'exécution d'une commande I2C.
+ * Le maître appelle cette fonction pour terminer l'exécution 
+ * d'une commande de lecture. L'esclave appelle cette fonction pour gérer 
+ * l'exécution d'une commande d'écriture.
+ * @param r La fonction à appeler.
+ */
+void i2cRappelCommande(I2cRappelCommande r) {
+    rappelCommande = r;
+}
+
 void i2cMaitre() {
-    unsigned char adresse;
+    static unsigned char adresse; // Adresse associée à la commande en cours.
     
     switch (etatMaitre) {
         case I2C_MASTER_EMISSION_ADRESSE:
@@ -80,7 +97,7 @@ void i2cMaitre() {
             
         case I2C_MASTER_RECEPTION_DONNEE:
             etatMaitre = I2C_MASTER_EMISSION_STOP;
-            PORTA = SSP1BUF;
+            rappelCommande(adresse, SSP1BUF);
             SSP1CON2bits.ACKDT = 1; // NACK
             SSP1CON2bits.ACKEN = 1; // Transmet le NACK
             break;
@@ -122,13 +139,6 @@ unsigned char i2cValeursExposees[I2C_NOMBRE_ADRESSES_PAR_ESCLAVE];
  */
 void i2cExposeValeur(unsigned char adresse, unsigned char valeur) {
     i2cValeursExposees[adresse] = valeur;
-}
-
-/** Adresse de la fonction à rappeler à la réception de commandes d'écriture */
-RappelCommande rappelCommande;
-
-void i2cRappelCommande(RappelCommande r) {
-    rappelCommande = r;
 }
 
 /**

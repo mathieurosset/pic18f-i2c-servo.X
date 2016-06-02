@@ -3,7 +3,7 @@
 #include "i2c.h"
 
 /**
- * Point d'entrée des interruptions pour l'émetteur.
+ * Point d'entrée des interruptions pour l'émetteur.grtrgrt
  */
 void emetteurInterruptions() {
 
